@@ -268,3 +268,42 @@ func (r DecryptRequest) payload(mid string) map[string]any {
 	payload["mch_id"] = resolveString(r.MID, mid)
 	return payload
 }
+
+type OAuthScope string
+
+const (
+	OAuthScopeBase     OAuthScope = "snsapi_base"
+	OAuthScopeUserInfo OAuthScope = "snsapi_userinfo"
+)
+
+type OAuthRequest struct {
+	MID         string     `json:"mch_id,omitempty"`
+	Scope       OAuthScope `json:"scope,omitempty"`
+	RedirectURL string     `json:"redirect_url,omitempty"`
+}
+
+type OAuthUserInfo struct {
+	AppID    string `json:"appid"`
+	OpenID   string `json:"openid"`
+	UnionID  string `json:"unionid,omitempty"`
+	Nick     string `json:"nick,omitempty"`
+	Avatar   string `json:"avatar,omitempty"`
+	Sex      int    `json:"sex,omitempty"`
+	Country  string `json:"country,omitempty"`
+	Province string `json:"province,omitempty"`
+	City     string `json:"city,omitempty"`
+}
+
+type JSSDKSignatureRequest struct {
+	URL       string `json:"url"`
+	MID       string `json:"mid,omitempty"`
+	NonceStr  string `json:"nonce_str,omitempty"`
+	Timestamp int64  `json:"timestamp,omitempty"`
+}
+
+type JSSDKSignatureData struct {
+	AppID     string `json:"appId"`
+	Timestamp string `json:"timestamp"`
+	NonceStr  string `json:"nonceStr"`
+	Signature string `json:"signature"`
+}

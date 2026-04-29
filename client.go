@@ -3,16 +3,11 @@ package openservice
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"io"
-	"math/big"
 	"net/http"
-	"net/url"
-	"time"
 
-	appLogger "github.com/modern-magic-go/logger"
+	"github.com/modern-magic-go/openservice/internal/gateway"
 )
 
 const (
@@ -30,7 +25,17 @@ type Client struct {
 	config     Config
 	httpClient *http.Client
 	signer     *Signer
-	logger     *appLogger.Logger
+	logger     Logger
+	gateway    *gateway.HTTPGateway
+}
+
+type Logger interface {
+	Sugar() SugaredLogger
+}
+
+type SugaredLogger interface {
+	Infow(msg string, keysAndValues ...any)
+	Errorw(msg string, keysAndValues ...any)
 }
 
 // Option 定义客户端可选装配项。
@@ -38,7 +43,7 @@ type Option func(*clientOptions)
 
 type clientOptions struct {
 	httpClient *http.Client
-	logger     *appLogger.Logger
+	logger     Logger
 }
 
 // WithHTTPClient 注入自定义 HTTP 客户端。
@@ -48,7 +53,7 @@ func WithHTTPClient(httpClient *http.Client) Option {
 	}
 }
 
-func WithLogger(logger *appLogger.Logger) Option {
+func WithLogger(logger Logger) Option {
 	return func(opts *clientOptions) {
 		opts.logger = logger
 	}
@@ -80,6 +85,21 @@ func NewClient(cfg Config, opts ...Option) (*Client, error) {
 		httpClient: httpClient,
 		signer:     NewSigner(cfg.Secret),
 		logger:     options.logger,
+		gateway: gateway.New(
+			cfg.BaseURL,
+			httpClient,
+			NewSigner(cfg.Secret),
+			loggerAdapter{logger: options.logger},
+			gateway.ErrorSet{
+				InvalidConfig:       ErrInvalidConfig,
+				InvalidRequest:      ErrInvalidRequest,
+				InvalidResponse:     ErrInvalidResponse,
+				HTTPTransport:       ErrHTTPTransport,
+				UnexpectedStatus:    ErrUnexpectedStatus,
+				ResponseCodeNonZero: ErrResponseCodeNonZero,
+				MissingData:         ErrMissingData,
+			},
+		),
 	}, nil
 }
 
@@ -196,136 +216,17 @@ func (c *Client) DecryptMiniAppData(ctx context.Context, req DecryptRequest) (De
 }
 
 func (c *Client) postJSON(ctx context.Context, path string, payload map[string]any, out any) error {
-	if c == nil {
+	if c == nil || c.gateway == nil {
 		return ErrInvalidConfig
 	}
-	if path == "" {
-		return ErrInvalidRequest
-	}
-
-	requestPayload := make(map[string]any, len(payload)+3)
-	for key, value := range payload {
-		requestPayload[key] = value
-	}
-	requestPayload["nonce_str"] = generateNonceStr(16)
-	requestPayload["timestamp"] = fmt.Sprintf("%d", time.Now().Unix())
-	requestPayload["sign"] = c.signer.Sign(requestPayload)
-
-	body, err := json.Marshal(requestPayload)
-	if err != nil {
-		return fmt.Errorf("%w: marshal request body: %v", ErrInvalidRequest, err)
-	}
-
-	fullURL := c.config.BaseURL + path
-
-	if c.logger != nil {
-		c.logger.Sugar().Infow("openservice request",
-			"channel", "openservice",
-			"method", "POST",
-			"url", fullURL,
-			"payload", string(body),
-		)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("%w: create request: %v", ErrInvalidRequest, err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		if c.logger != nil {
-			c.logger.Sugar().Errorw("openservice request failed",
-				"channel", "openservice",
-				"url", fullURL,
-				"error", err,
-			)
-		}
-		return fmt.Errorf("%w: %v", ErrHTTPTransport, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("%w: status=%d", ErrUnexpectedStatus, resp.StatusCode)
-	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("%w: read response body: %v", ErrInvalidResponse, err)
-	}
-
-	if c.logger != nil {
-		c.logger.Sugar().Infow("openservice response",
-			"channel", "openservice",
-			"url", fullURL,
-			"status", resp.StatusCode,
-			"body", string(bodyBytes),
-		)
-	}
-
-	if err := decodeResult(bodyBytes, out); err != nil {
-		return err
-	}
-	return nil
+	return c.gateway.PostJSON(ctx, path, payload, out)
 }
 
 func (c *Client) getJSON(ctx context.Context, path string, queryParams map[string]any, out any) error {
-	if c == nil {
+	if c == nil || c.gateway == nil {
 		return ErrInvalidConfig
 	}
-	if path == "" {
-		return ErrInvalidRequest
-	}
-
-	// 添加签名所需字段（保留 code 参与签名）
-	queryParams["nonce_str"] = generateNonceStr(16)
-	queryParams["timestamp"] = fmt.Sprintf("%d", time.Now().Unix())
-	sign := c.signer.Sign(queryParams)
-	queryParams["sign"] = sign
-
-	// 构建 query string
-	params := url.Values{}
-	for key, value := range queryParams {
-		params.Add(key, fmt.Sprintf("%v", value))
-	}
-
-	fullURL := c.config.BaseURL + path + "?" + params.Encode()
-	if c.logger != nil {
-		c.logger.Sugar().Infow("openservice request",
-			"channel", "openservice",
-			"method", "GET",
-			"url", fullURL,
-			"params", queryParams,
-		)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
-	if err != nil {
-		return fmt.Errorf("%w: create request: %v", ErrInvalidRequest, err)
-	}
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrHTTPTransport, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("%w: status=%d", ErrUnexpectedStatus, resp.StatusCode)
-	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("%w: read response body: %v", ErrInvalidResponse, err)
-	}
-
-	if err := decodeResult(bodyBytes, out); err != nil {
-		return err
-	}
-	return nil
+	return c.gateway.GetJSON(ctx, path, queryParams, out)
 }
 
 func decodeResult(body []byte, out any) error {
@@ -362,19 +263,18 @@ func ensureContext(ctx context.Context) error {
 	return nil
 }
 
-func generateNonceStr(length int) string {
-	if length <= 0 {
-		length = 16
+type loggerAdapter struct{ logger Logger }
+
+func (l loggerAdapter) Infow(msg string, keysAndValues ...any) {
+	if l.logger == nil {
+		return
 	}
-	const charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	buf := make([]byte, length)
-	max := big.NewInt(int64(len(charset)))
-	for i := range buf {
-		n, err := rand.Int(rand.Reader, max)
-		if err != nil {
-			panic(err)
-		}
-		buf[i] = charset[n.Int64()]
+	l.logger.Sugar().Infow(msg, keysAndValues...)
+}
+
+func (l loggerAdapter) Errorw(msg string, keysAndValues ...any) {
+	if l.logger == nil {
+		return
 	}
-	return string(buf)
+	l.logger.Sugar().Errorw(msg, keysAndValues...)
 }

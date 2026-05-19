@@ -15,7 +15,7 @@ const (
 	scanPayPath        = "/api/payment/scanPay"
 	queryOrderPath     = "/api/payment/queryOrder"
 	refundPath         = "/api/payment/refund"
-	miniAppLoginPath   = "/login/miniapp"
+	miniAppLoginPath   = "/api/login/miniapp"
 	miniAppDecryptPath = "/api/decrypted/miniapp"
 )
 

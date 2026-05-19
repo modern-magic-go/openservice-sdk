@@ -31,21 +31,23 @@
 //
 //	_ = resp
 //
-//	// 小程序登录接口
+//	// 小程序静默登录：使用 wx.login() 获取的 code 换取身份标识。
 //	loginResp, err := client.MiniAppLogin(ctx, openservice.MiniAppLoginRequest{
 //	    Code: "0811A11xxxxx",
 //	})
 //	if err != nil {
 //	    return err
 //	}
-//	// loginResp.OpenID, loginResp.UnionID 可用于业务登录
+//	// loginResp.OpenID, loginResp.UnionID 可用于业务登录。
 //
-//	// 小程序数据解密接口
+//	// 小程序非静默授权数据解密：登录接口不直接返回手机号或用户资料。
+//	// 当小程序端通过 getPhoneNumber / getUserProfile 等能力拿到加密数据后，
+//	// 再用登录得到的 openid 调用解密接口。
 //	decryptedData, err := client.DecryptMiniAppData(ctx, openservice.DecryptRequest{
-//	    AppID:  "wx1234567890abcdef",
-//	    OpenID: "oUpF8uMuAJO_M2pxb1Q9zNjWeS6o",
-//	    Data:   "xxxxx", // Base64 加密数据
-//	    IV:     "yyyyy", // Base64 初始向量
+//	    AppID:  loginResp.AppID,
+//	    OpenID: loginResp.OpenID,
+//	    Data:   "xxxxx", // 小程序授权回调返回的 encryptedData
+//	    IV:     "yyyyy", // 小程序授权回调返回的 iv
 //	})
 //	if err != nil {
 //	    return err

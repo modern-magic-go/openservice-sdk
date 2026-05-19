@@ -135,7 +135,7 @@ func TestClientRefund_PostsSignedPayloadAndDecodesResponse(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	resp, err := client.Refund(context.Background(), RefundRequest{
+	resp, err := client.Payment().Refund(context.Background(), RefundRequest{
 		OutTradeNo:   "T202604100001",
 		OutRefundNo:  "R202604100001",
 		TotalAmount:  100,

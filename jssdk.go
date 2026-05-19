@@ -1,13 +1,11 @@
 package openservice
 
 import (
-	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 )
 
@@ -15,61 +13,6 @@ const (
 	oauthPath     = "/api/login/oauth"
 	jssdkSignPath = "/api/jssdk/signature"
 )
-
-func (c *Client) OAuthURL(ctx context.Context, req OAuthRequest) (string, error) {
-	if err := ensureContext(ctx); err != nil {
-		return "", err
-	}
-	if c == nil || c.config.BaseURL == "" {
-		return "", ErrInvalidConfig
-	}
-
-	mchID := resolveString(req.MID, c.config.MID)
-	if mchID == "" {
-		return "", ErrMissingMID
-	}
-
-	if req.RedirectURL == "" {
-		return "", fmt.Errorf("%w: redirect_url is required", ErrInvalidRequest)
-	}
-
-	scope := req.Scope
-	if scope == "" {
-		scope = OAuthScopeBase
-	}
-
-	redirectURLEncoded := url.QueryEscape(req.RedirectURL)
-
-	params := url.Values{}
-	params.Set("mch_id", mchID)
-	params.Set("scope", string(scope))
-	params.Set("redirect_url", redirectURLEncoded)
-
-	return c.config.BaseURL + oauthPath + "?" + params.Encode(), nil
-}
-
-func (c *Client) JSSDKSignature(ctx context.Context, req JSSDKSignatureRequest) (*JSSDKSignatureData, error) {
-	if err := ensureContext(ctx); err != nil {
-		return nil, err
-	}
-
-	if req.URL == "" {
-		return nil, fmt.Errorf("%w: url is required", ErrInvalidRequest)
-	}
-
-	mid := resolveString(req.MID, c.config.MID)
-	if mid == "" {
-		return nil, ErrMissingMID
-	}
-
-	var data JSSDKSignatureData
-	queryParams := req.payload(mid)
-	if err := c.getJSON(ctx, jssdkSignPath, queryParams, &data); err != nil {
-		return nil, err
-	}
-
-	return &data, nil
-}
 
 func DecryptTicket(ticket, aesKey, aesIV string) (*OAuthUserInfo, error) {
 	if ticket == "" {

@@ -16,7 +16,6 @@ const (
 	queryOrderPath     = "/api/payment/queryOrder"
 	refundPath         = "/api/payment/refund"
 	miniAppLoginPath   = "/login/miniapp"
-	miniGameLoginPath  = "/login/minigame"
 	miniAppDecryptPath = "/api/decrypted/miniapp"
 )
 
@@ -127,92 +126,19 @@ func (c *Client) Signer() *Signer {
 	return c.signer
 }
 
-// Prepay 调用统一下单接口。
-func (c *Client) Prepay(ctx context.Context, req PrepayRequest) (*PrepayData, error) {
-	if err := ensureContext(ctx); err != nil {
-		return nil, err
-	}
-	var data PrepayData
-	if err := c.postJSON(ctx, prepayPath, req.payload(c.config.MID), &data); err != nil {
-		return nil, err
-	}
-	return &data, nil
+// Payment 返回支付产品门面。
+func (c *Client) Payment() *Payment {
+	return &Payment{client: c}
 }
 
-// ScanPay 调用付款码支付接口。
-func (c *Client) ScanPay(ctx context.Context, req ScanPayRequest) (*ScanPayData, error) {
-	if err := ensureContext(ctx); err != nil {
-		return nil, err
-	}
-	var data ScanPayData
-	if err := c.postJSON(ctx, scanPayPath, req.payload(c.config.MID), &data); err != nil {
-		return nil, err
-	}
-	return &data, nil
+// MiniProgram 返回微信小程序产品门面。
+func (c *Client) MiniProgram() *MiniProgram {
+	return &MiniProgram{client: c}
 }
 
-// QueryOrder 调用订单查询接口。
-func (c *Client) QueryOrder(ctx context.Context, req QueryOrderRequest) (*QueryOrderData, error) {
-	if err := ensureContext(ctx); err != nil {
-		return nil, err
-	}
-	var data QueryOrderData
-	if err := c.postJSON(ctx, queryOrderPath, req.payload(c.config.MID), &data); err != nil {
-		return nil, err
-	}
-	return &data, nil
-}
-
-// Refund 调用退款接口。
-func (c *Client) Refund(ctx context.Context, req RefundRequest) (*RefundData, error) {
-	if err := ensureContext(ctx); err != nil {
-		return nil, err
-	}
-	var data RefundData
-	if err := c.postJSON(ctx, refundPath, req.payload(c.config.MID), &data); err != nil {
-		return nil, err
-	}
-	return &data, nil
-}
-
-// MiniAppLogin 调用小程序登录接口。
-// 通过 wx.login() 获取的 code 换取用户的 openid 和 session_key。
-// session_key 不会返回给调用方，仅存储在服务端用于后续数据解密。
-func (c *Client) MiniAppLogin(ctx context.Context, req MiniAppLoginRequest) (*MiniAppLoginData, error) {
-	if err := ensureContext(ctx); err != nil {
-		return nil, err
-	}
-	var data MiniAppLoginData
-	if err := c.getJSON(ctx, miniAppLoginPath, req.payload(c.config.MID), &data); err != nil {
-		return nil, err
-	}
-	return &data, nil
-}
-
-// MiniGameLogin 调用小游戏登录接口。
-// 与小程序登录接口完全相同，共用同一个 handler。
-func (c *Client) MiniGameLogin(ctx context.Context, req MiniAppLoginRequest) (*MiniAppLoginData, error) {
-	if err := ensureContext(ctx); err != nil {
-		return nil, err
-	}
-	var data MiniAppLoginData
-	if err := c.postJSON(ctx, miniGameLoginPath, req.payload(c.config.MID), &data); err != nil {
-		return nil, err
-	}
-	return &data, nil
-}
-
-// DecryptMiniAppData 调用小程序数据解密接口。
-// 使用存储在服务端的 session_key 解密微信返回的加密数据（如用户手机号、运动数据等）。
-func (c *Client) DecryptMiniAppData(ctx context.Context, req DecryptRequest) (DecryptData, error) {
-	if err := ensureContext(ctx); err != nil {
-		return nil, err
-	}
-	var data DecryptData
-	if err := c.postJSON(ctx, miniAppDecryptPath, req.payload(c.config.MID), &data); err != nil {
-		return nil, err
-	}
-	return data, nil
+// OfficialAccount 返回微信公众号产品门面。
+func (c *Client) OfficialAccount() *OfficialAccount {
+	return &OfficialAccount{client: c}
 }
 
 func (c *Client) postJSON(ctx context.Context, path string, payload map[string]any, out any) error {

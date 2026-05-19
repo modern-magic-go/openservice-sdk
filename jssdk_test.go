@@ -86,7 +86,7 @@ func TestOAuthURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			urlStr, err := client.OAuthURL(context.Background(), tt.req)
+			urlStr, err := client.OfficialAccount().OAuthURL(context.Background(), tt.req)
 			if tt.wantErr {
 				if err == nil {
 					t.Error("expected error, got nil")

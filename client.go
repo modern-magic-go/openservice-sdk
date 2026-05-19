@@ -14,7 +14,9 @@ const (
 	prepayPath         = "/api/payment/prepay"
 	scanPayPath        = "/api/payment/scanPay"
 	queryOrderPath     = "/api/payment/queryOrder"
+	queryRefundPath    = "/api/payment/queryRefund"
 	refundPath         = "/api/payment/refund"
+	getPaidUnionIDPath = "/api/payment/getPaidUnionid"
 	miniAppLoginPath   = "/api/login/miniapp"
 	miniAppDecryptPath = "/api/decrypted/miniapp"
 )

@@ -52,6 +52,21 @@ func (p *Payment) QueryOrder(ctx context.Context, req QueryOrderRequest) (*Query
 	return &data, nil
 }
 
+// QueryRefund 调用退款查询接口。
+func (p *Payment) QueryRefund(ctx context.Context, req QueryRefundRequest) (*QueryRefundData, error) {
+	if err := ensureContext(ctx); err != nil {
+		return nil, err
+	}
+	if p == nil || p.client == nil {
+		return nil, ErrInvalidConfig
+	}
+	var data QueryRefundData
+	if err := p.client.postJSON(ctx, queryRefundPath, req.payload(p.client.config.MID), &data); err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
 // Refund 调用退款接口。
 func (p *Payment) Refund(ctx context.Context, req RefundRequest) (*RefundData, error) {
 	if err := ensureContext(ctx); err != nil {
@@ -62,6 +77,21 @@ func (p *Payment) Refund(ctx context.Context, req RefundRequest) (*RefundData, e
 	}
 	var data RefundData
 	if err := p.client.postJSON(ctx, refundPath, req.payload(p.client.config.MID), &data); err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
+// GetPaidUnionID 调用支付后 UnionID 查询接口。
+func (p *Payment) GetPaidUnionID(ctx context.Context, req GetPaidUnionIDRequest) (*GetPaidUnionIDData, error) {
+	if err := ensureContext(ctx); err != nil {
+		return nil, err
+	}
+	if p == nil || p.client == nil {
+		return nil, ErrInvalidConfig
+	}
+	var data GetPaidUnionIDData
+	if err := p.client.postJSON(ctx, getPaidUnionIDPath, req.payload(p.client.config.MID), &data); err != nil {
 		return nil, err
 	}
 	return &data, nil

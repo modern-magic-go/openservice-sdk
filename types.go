@@ -89,9 +89,21 @@ type QueryOrderData struct {
 	Order
 }
 
+// QueryRefundData 表示退款查询响应数据。
+type QueryRefundData struct {
+	Refund
+}
+
 // RefundData 表示退款发起响应数据。
 type RefundData struct {
 	Refund Refund `json:"refund"`
+}
+
+// GetPaidUnionIDData 表示支付后 UnionID 查询响应数据。
+type GetPaidUnionIDData struct {
+	AppID   string `json:"appid,omitempty"`
+	OpenID  string `json:"openid,omitempty"`
+	UnionID string `json:"unionid,omitempty"`
 }
 
 // BaseRequest 表示所有受保护接口共享字段。
@@ -133,6 +145,12 @@ type QueryOrderRequest struct {
 	OutTradeNo string `json:"outTradeNo"`
 }
 
+// QueryRefundRequest 表示退款查询请求。
+type QueryRefundRequest struct {
+	BaseRequest
+	OutRefundNo string `json:"outRefundNo"`
+}
+
 // RefundRequest 表示退款发起请求。
 type RefundRequest struct {
 	BaseRequest
@@ -144,6 +162,13 @@ type RefundRequest struct {
 	NotifyURL    string `json:"notifyUrl,omitempty"`
 	OpenID       string `json:"openid,omitempty"`
 	SubOpenID    string `json:"subOpenid,omitempty"`
+}
+
+// GetPaidUnionIDRequest 表示支付后 UnionID 查询请求。
+type GetPaidUnionIDRequest struct {
+	BaseRequest
+	OutTradeNo string `json:"outTradeNo"`
+	OpenID     string `json:"openid,omitempty"`
 }
 
 func resolveString(primary, fallback string) string {
@@ -199,6 +224,13 @@ func (r QueryOrderRequest) payload(mid string) map[string]any {
 	}
 }
 
+func (r QueryRefundRequest) payload(mid string) map[string]any {
+	return map[string]any{
+		"mid":         resolveString(r.MID, mid),
+		"outRefundNo": r.OutRefundNo,
+	}
+}
+
 func (r RefundRequest) payload(mid string) map[string]any {
 	payload := map[string]any{
 		"mid":          resolveString(r.MID, mid),
@@ -216,6 +248,17 @@ func (r RefundRequest) payload(mid string) map[string]any {
 	}
 	if r.SubOpenID != "" {
 		payload["subOpenid"] = r.SubOpenID
+	}
+	return payload
+}
+
+func (r GetPaidUnionIDRequest) payload(mid string) map[string]any {
+	payload := map[string]any{
+		"mid":        resolveString(r.MID, mid),
+		"outTradeNo": r.OutTradeNo,
+	}
+	if r.OpenID != "" {
+		payload["openid"] = r.OpenID
 	}
 	return payload
 }

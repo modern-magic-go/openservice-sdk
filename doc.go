@@ -32,6 +32,23 @@
 //	}
 //	// paymentResp.Prepay 可直接传给前端拉起微信支付。
 //	_ = paymentResp
+//	// 业务代码只传业务参数；mid、nonce_str、timestamp、sign 由 SDK 请求网关补齐。
+//
+//	refundResp, err := client.Payment().QueryRefund(ctx, openservice.QueryRefundRequest{
+//	    OutRefundNo: "R202604100001",
+//	})
+//	if err != nil {
+//	    return err
+//	}
+//	_ = refundResp.TransStatus
+//
+//	unionResp, err := client.Payment().GetPaidUnionID(ctx, openservice.GetPaidUnionIDRequest{
+//	    OutTradeNo: "T202604100001",
+//	})
+//	if err != nil {
+//	    return err
+//	}
+//	_ = unionResp.UnionID
 //
 //	// 公众号门面：OAuth、JSSDK 签名和 ticket 解密按公众号产品语义聚合。
 //	officialAccount := client.OfficialAccount()

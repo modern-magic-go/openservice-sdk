@@ -1,13 +1,10 @@
 package openservice
 
 import (
-	"crypto/md5"
-	"encoding/hex"
-	"encoding/json"
 	"net/url"
-	"sort"
-	"strconv"
 	"strings"
+
+	"github.com/modern-magic-go/openservice-sdk/internal/signing"
 )
 
 type Signer struct {
@@ -19,40 +16,14 @@ func NewSigner(secret string) *Signer {
 }
 
 func (s *Signer) BuildSignString(params map[string]any) string {
-	keys := make([]string, 0, len(params))
-	for k := range params {
-		if k == "sign" || k == "signature" {
-			continue
-		}
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var sb strings.Builder
-	for _, k := range keys {
-		v := params[k]
-		val := normalizeSignValue(v)
-		if val == "" {
-			continue
-		}
-		if sb.Len() > 0 {
-			sb.WriteString("&")
-		}
-		sb.WriteString(k)
-		sb.WriteString("=")
-		sb.WriteString(val)
-	}
-	sb.WriteString("&key=")
-	sb.WriteString(s.secret)
-
-	return sb.String()
+	return signing.BuildSignString(params, s.secret)
 }
 
 func (s *Signer) Sign(params map[string]any) string {
-	if s == nil || s.secret == "" {
+	if s == nil {
 		return ""
 	}
-	return upperMD5(s.BuildSignString(params))
+	return signing.Sign(params, s.secret)
 }
 
 func (s *Signer) SignValues(values url.Values) string {
@@ -71,86 +42,12 @@ func (s *Signer) SignValues(values url.Values) string {
 }
 
 func (s *Signer) VerifySign(params map[string]any) bool {
-	if s == nil || s.secret == "" {
+	if s == nil {
 		return false
 	}
-	sign := ""
-	if v, ok := params["sign"].(string); ok {
-		sign = v
-	}
-	verifyParams := make(map[string]any, len(params))
-	for key, value := range params {
-		if key == "sign" || key == "signature" {
-			continue
-		}
-		verifyParams[key] = value
-	}
-
-	keys := make([]string, 0, len(verifyParams))
-	for k := range verifyParams {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var sb strings.Builder
-	for _, k := range keys {
-		v := verifyParams[k]
-		val := normalizeSignValue(v)
-		if val == "" {
-			continue
-		}
-		if sb.Len() > 0 {
-			sb.WriteString("&")
-		}
-		sb.WriteString(k)
-		sb.WriteString("=")
-		sb.WriteString(val)
-	}
-	sb.WriteString("&key=")
-	sb.WriteString(s.secret)
-
-	hash := md5.Sum([]byte(sb.String()))
-	real := strings.ToUpper(hex.EncodeToString(hash[:]))
-	return real == sign
+	return signing.Verify(params, s.secret)
 }
 
 func normalizeSignValue(value any) string {
-	switch v := value.(type) {
-	case string:
-		return v
-	case int:
-		return strconv.Itoa(v)
-	case int64:
-		return strconv.FormatInt(v, 10)
-	case float64:
-		return strconv.FormatFloat(v, 'f', -1, 64)
-	case bool:
-		if v {
-			return "true"
-		}
-		return "false"
-	case []any:
-		if len(v) == 0 {
-			return ""
-		}
-		b, _ := json.Marshal(v)
-		return string(b)
-	case map[string]any:
-		if len(v) == 0 {
-			return ""
-		}
-		b, _ := json.Marshal(v)
-		return string(b)
-	default:
-		if v == nil {
-			return ""
-		}
-		b, _ := json.Marshal(v)
-		return string(b)
-	}
-}
-
-func upperMD5(input string) string {
-	hash := md5.Sum([]byte(input))
-	return strings.ToUpper(hex.EncodeToString(hash[:]))
+	return signing.NormalizeValue(value)
 }

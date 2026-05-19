@@ -57,7 +57,7 @@ func TestSignIgnoresSignatureField(t *testing.T) {
 	assert.Equal(t, "a=1&key=secret-key", got)
 }
 
-func TestVerifySignIgnoresSignatureField(t *testing.T) {
+func TestSignerVerifySignIgnoresSignatureField(t *testing.T) {
 	signer := NewSigner("secret-key")
 	params := map[string]any{
 		"signature": "skip",
@@ -65,10 +65,10 @@ func TestVerifySignIgnoresSignatureField(t *testing.T) {
 	}
 	params["sign"] = signer.Sign(params)
 
-	assert.True(t, VerifySign(params, "secret-key"))
+	assert.True(t, signer.VerifySign(params))
 }
 
-func TestVerifySign_DoesNotMutateInput(t *testing.T) {
+func TestSignerVerifySign_DoesNotMutateInput(t *testing.T) {
 	signer := NewSigner("secret-key")
 	params := map[string]any{
 		"a":         "1",
@@ -79,7 +79,7 @@ func TestVerifySign_DoesNotMutateInput(t *testing.T) {
 	signBefore := params["sign"]
 	signatureBefore := params["signature"]
 
-	assert.True(t, VerifySign(params, "secret-key"))
+	assert.True(t, signer.VerifySign(params))
 	assert.Equal(t, signBefore, params["sign"])
 	assert.Equal(t, signatureBefore, params["signature"])
 }

@@ -70,5 +70,5 @@ func (o *OfficialAccount) DecryptTicket(ticket string) (*OAuthUserInfo, error) {
 		return nil, ErrInvalidConfig
 	}
 	cfg := o.client.Config()
-	return DecryptTicket(ticket, cfg.AESKey, cfg.AESIv)
+	return decryptTicket(ticket, cfg.AESKey, cfg.AESIv)
 }

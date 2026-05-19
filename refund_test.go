@@ -120,7 +120,7 @@ func TestClientRefund_PostsSignedPayloadAndDecodesResponse(t *testing.T) {
 		assert.NotEmpty(t, payload["nonce_str"])
 		assert.NotEmpty(t, payload["timestamp"])
 		assert.NotEmpty(t, payload["sign"])
-		assert.True(t, VerifySign(payload, "test_merchant_secret_123456"))
+		assert.True(t, NewSigner("test_merchant_secret_123456").VerifySign(payload))
 
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"code":0,"message":"success","data":{"refund":{"mid":"1900001","outTradeNo":"T202604100001","refundNo":"RF202604100001","outRefundNo":"R202604100001","transStatus":"Pending","transMessage":"退款处理中"}}}`))

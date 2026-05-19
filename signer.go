@@ -70,7 +70,10 @@ func (s *Signer) SignValues(values url.Values) string {
 	return s.Sign(params)
 }
 
-func VerifySign(params map[string]any, secret string) bool {
+func (s *Signer) VerifySign(params map[string]any) bool {
+	if s == nil || s.secret == "" {
+		return false
+	}
 	sign := ""
 	if v, ok := params["sign"].(string); ok {
 		sign = v
@@ -104,7 +107,7 @@ func VerifySign(params map[string]any, secret string) bool {
 		sb.WriteString(val)
 	}
 	sb.WriteString("&key=")
-	sb.WriteString(secret)
+	sb.WriteString(s.secret)
 
 	hash := md5.Sum([]byte(sb.String()))
 	real := strings.ToUpper(hex.EncodeToString(hash[:]))

@@ -123,16 +123,6 @@
 //	    _ = parsed.Refund.OutRefundNo
 //	}
 //
-// Package-level helpers are also available when a facade instance is not handy:
-//
-//	if err := openservice.VerifyPaymentNotification(r.PostForm, "merchant-secret"); err != nil {
-//	    return err
-//	}
-//	parsed, err = openservice.ParsePaymentNotification(r.PostForm)
-//	if err != nil {
-//	    return err
-//	}
-//
 // Official Account facade:
 //
 // OAuth URL generation, JSSDK signature retrieval, and encrypted ticket decoding
@@ -157,12 +147,6 @@
 //	_ = jssdkSignature
 //
 //	userInfo, err := officialAccount.DecryptTicket("ticket-from-callback")
-//	if err != nil {
-//	    return err
-//	}
-//	_ = userInfo
-//
-//	userInfo, err = openservice.DecryptTicket("ticket-from-callback", "ticket-aes-key", "ticket-aes-iv")
 //	if err != nil {
 //	    return err
 //	}
@@ -200,5 +184,5 @@
 //	signString := signer.BuildSignString(params)
 //	params["sign"] = signer.Sign(params)
 //	_ = signString
-//	_ = openservice.VerifySign(params, "merchant-secret")
+//	_ = signer.VerifySign(params)
 package openservice

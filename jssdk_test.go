@@ -149,7 +149,7 @@ func TestDecryptTicket(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			userInfo, err := DecryptTicket(tt.ticket, tt.key, tt.iv)
+			userInfo, err := decryptTicket(tt.ticket, tt.key, tt.iv)
 			if tt.wantErr {
 				if err == nil {
 					t.Error("expected error, got nil")
@@ -167,12 +167,12 @@ func TestDecryptTicket(t *testing.T) {
 }
 
 func TestDecryptTicket_InvalidKey(t *testing.T) {
-	_, err := DecryptTicket("valid-ticket", "", "valid-iv")
+	_, err := decryptTicket("valid-ticket", "", "valid-iv")
 	if err == nil {
 		t.Error("expected error for empty aes_key")
 	}
 
-	_, err = DecryptTicket("valid-ticket", "valid-key", "")
+	_, err = decryptTicket("valid-ticket", "valid-key", "")
 	if err == nil {
 		t.Error("expected error for empty aes_iv")
 	}
@@ -244,7 +244,11 @@ func TestDecryptTicket_FullCycle(t *testing.T) {
 
 	ticket := base64.StdEncoding.EncodeToString(ciphertext)
 
-	decrypted, err := DecryptTicket(ticket, key, iv)
+	client, err := NewClient(Config{BaseURL: "https://openservice.example.com", MID: "10001", Secret: "test-secret", AESKey: key, AESIv: iv, Timeout: time.Second})
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+	decrypted, err := client.OfficialAccount().DecryptTicket(ticket)
 	if err != nil {
 		t.Fatalf("DecryptTicket failed: %v", err)
 	}
@@ -290,7 +294,7 @@ func TestDecryptTicket_UrlSafeBase64(t *testing.T) {
 
 	ticket := base64.URLEncoding.EncodeToString(ciphertext)
 
-	decrypted, err := DecryptTicket(ticket, key, iv)
+	decrypted, err := decryptTicket(ticket, key, iv)
 	if err != nil {
 		t.Fatalf("DecryptTicket failed: %v", err)
 	}
@@ -331,7 +335,7 @@ func TestDecryptTicket_MissingPadding(t *testing.T) {
 	}
 	ticket = strings.TrimRight(ticket, "=")
 
-	decrypted, err := DecryptTicket(ticket, key, iv)
+	decrypted, err := decryptTicket(ticket, key, iv)
 	if err != nil {
 		t.Fatalf("DecryptTicket failed: %v", err)
 	}

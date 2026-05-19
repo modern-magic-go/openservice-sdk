@@ -14,7 +14,7 @@ const (
 	jssdkSignPath = "/api/jssdk/signature"
 )
 
-func DecryptTicket(ticket, aesKey, aesIV string) (*OAuthUserInfo, error) {
+func decryptTicket(ticket, aesKey, aesIV string) (*OAuthUserInfo, error) {
 	if ticket == "" {
 		return nil, fmt.Errorf("%w: ticket is required", ErrInvalidRequest)
 	}

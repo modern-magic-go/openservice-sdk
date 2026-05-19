@@ -66,8 +66,7 @@ type NotificationParseResult struct {
 	Raw     map[string]string    `json:"raw,omitempty"`
 }
 
-// VerifyPaymentNotification 验签 OpenService 支付或退款回调通知参数。
-func VerifyPaymentNotification(input any, secret string) error {
+func verifyPaymentNotification(input any, secret string) error {
 	raw, err := notificationParams(input)
 	if err != nil {
 		return err
@@ -75,14 +74,13 @@ func VerifyPaymentNotification(input any, secret string) error {
 	if strings.TrimSpace(secret) == "" {
 		return ErrMissingSecret
 	}
-	if !VerifySign(notificationSignParams(raw), secret) {
+	if !NewSigner(secret).VerifySign(notificationSignParams(raw)) {
 		return fmt.Errorf("%w: notification signature verify failed", ErrInvalidRequest)
 	}
 	return nil
 }
 
-// ParsePaymentNotification 解析 OpenService 支付或退款回调通知参数，不执行验签。
-func ParsePaymentNotification(input any) (*NotificationParseResult, error) {
+func parsePaymentNotificationInput(input any) (*NotificationParseResult, error) {
 	raw, err := notificationParams(input)
 	if err != nil {
 		return nil, err

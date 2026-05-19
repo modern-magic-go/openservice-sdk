@@ -1,11 +1,12 @@
-// Package openservice provides the OpenService SDK client for payment, login,
-// JSSDK, notification parsing, and signature integration.
+// Package openservice provides the OpenService SDK client for OpenService
+// payment, WeChat Mini Program, Official Account, notification parsing, and
+// signature integration.
 //
 // The package only depends on the standard library and is intended to be wired by
 // the host application. The host is responsible for loading Config, providing any
 // custom HTTP client or transport, and handling logging/lifecycle concerns.
 //
-// Typical usage:
+// Client setup:
 //
 //	client, err := openservice.NewClient(openservice.Config{
 //	    BaseURL: "https://openservice.example.com",
@@ -18,9 +19,29 @@
 //	if err != nil {
 //	    return err
 //	}
+//	_ = client.Config()
+//	_ = client.HTTPClient()
+//	_ = client.Signer()
 //
-//	// 支付门面：公众号和小程序都使用统一下单；openid 由业务项目提前取得。
-//	paymentResp, err := client.Payment().Prepay(ctx, openservice.PrepayRequest{
+// Custom HTTP client and logger can be injected when constructing the client:
+//
+//	client, err = openservice.NewClient(cfg,
+//	    openservice.WithHTTPClient(httpClient),
+//	    openservice.WithLogger(logger),
+//	)
+//	if err != nil {
+//	    return err
+//	}
+//
+// Payment facade:
+//
+// The Payment facade is the single entry for payment APIs. Official Account and
+// Mini Program payment both use Prepay; openid is obtained by the business
+// application before calling the SDK. Business code only passes business fields;
+// mid, nonce_str, timestamp, and sign are completed by the signed gateway.
+//
+//	payment := client.Payment()
+//	prepayResp, err := payment.Prepay(ctx, openservice.PrepayRequest{
 //	    Subject:    "会员充值",
 //	    OutTradeNo: "T202604100001",
 //	    Amount:     100,
@@ -30,11 +51,43 @@
 //	if err != nil {
 //	    return err
 //	}
-//	// paymentResp.Prepay 可直接传给前端拉起微信支付。
-//	_ = paymentResp
-//	// 业务代码只传业务参数；mid、nonce_str、timestamp、sign 由 SDK 请求网关补齐。
+//	// prepayResp.Prepay can be passed to the frontend to invoke WeChat payment.
+//	_ = prepayResp.Prepay
+//	_ = prepayResp.Order
 //
-//	refundResp, err := client.Payment().QueryRefund(ctx, openservice.QueryRefundRequest{
+//	scanResp, err := payment.ScanPay(ctx, openservice.ScanPayRequest{
+//	    Subject:    "线下收款",
+//	    OutTradeNo: "T202604100002",
+//	    Amount:     100,
+//	    AuthCode:   "付款码",
+//	    NotifyURL:  "https://api.example.com/pay/notify",
+//	})
+//	if err != nil {
+//	    return err
+//	}
+//	_ = scanResp.Order
+//
+//	orderResp, err := payment.QueryOrder(ctx, openservice.QueryOrderRequest{
+//	    OutTradeNo: "T202604100001",
+//	})
+//	if err != nil {
+//	    return err
+//	}
+//	_ = orderResp.TransStatus
+//
+//	refundCreated, err := payment.Refund(ctx, openservice.RefundRequest{
+//	    OutTradeNo:   "T202604100001",
+//	    OutRefundNo:  "R202604100001",
+//	    TotalAmount:  100,
+//	    RefundAmount: 20,
+//	    NotifyURL:    "https://api.example.com/refund/notify",
+//	})
+//	if err != nil {
+//	    return err
+//	}
+//	_ = refundCreated.Refund
+//
+//	refundResp, err := payment.QueryRefund(ctx, openservice.QueryRefundRequest{
 //	    OutRefundNo: "R202604100001",
 //	})
 //	if err != nil {
@@ -42,7 +95,7 @@
 //	}
 //	_ = refundResp.TransStatus
 //
-//	unionResp, err := client.Payment().GetPaidUnionID(ctx, openservice.GetPaidUnionIDRequest{
+//	unionResp, err := payment.GetPaidUnionID(ctx, openservice.GetPaidUnionIDRequest{
 //	    OutTradeNo: "T202604100001",
 //	})
 //	if err != nil {
@@ -50,7 +103,41 @@
 //	}
 //	_ = unionResp.UnionID
 //
-//	// 公众号门面：OAuth、JSSDK 签名和 ticket 解密按公众号产品语义聚合。
+// Payment notifications:
+//
+// Payment and refund notifications are form-urlencoded callbacks sent by
+// OpenService. The SDK verifies and parses them, but the HTTP handler still owns
+// idempotency, business persistence, and returning plain text SUCCESS.
+//
+//	if err := payment.VerifyNotification(r.PostForm); err != nil {
+//	    return err
+//	}
+//	parsed, err := payment.ParseNotification(r.PostForm)
+//	if err != nil {
+//	    return err
+//	}
+//	switch parsed.Kind {
+//	case openservice.NotificationKindPayment:
+//	    _ = parsed.Payment.OutTradeNo
+//	case openservice.NotificationKindRefund:
+//	    _ = parsed.Refund.OutRefundNo
+//	}
+//
+// Package-level helpers are also available when a facade instance is not handy:
+//
+//	if err := openservice.VerifyPaymentNotification(r.PostForm, "merchant-secret"); err != nil {
+//	    return err
+//	}
+//	parsed, err = openservice.ParsePaymentNotification(r.PostForm)
+//	if err != nil {
+//	    return err
+//	}
+//
+// Official Account facade:
+//
+// OAuth URL generation, JSSDK signature retrieval, and encrypted ticket decoding
+// are grouped by Official Account product semantics.
+//
 //	officialAccount := client.OfficialAccount()
 //	oauthURL, err := officialAccount.OAuthURL(ctx, openservice.OAuthRequest{
 //	    Scope:       openservice.OAuthScopeUserInfo,
@@ -75,19 +162,14 @@
 //	}
 //	_ = userInfo
 //
-//	// 支付 / 退款回调通知解析：HTTP handler 仍负责返回纯文本 SUCCESS。
-//	parsed, err := openservice.ParsePaymentNotification(r.PostForm, "merchant-secret")
+//	userInfo, err = openservice.DecryptTicket("ticket-from-callback", "ticket-aes-key", "ticket-aes-iv")
 //	if err != nil {
 //	    return err
 //	}
-//	switch parsed.Kind {
-//	case openservice.NotificationKindPayment:
-//	    _ = parsed.Payment.OutTradeNo
-//	case openservice.NotificationKindRefund:
-//	    _ = parsed.Refund.OutRefundNo
-//	}
+//	_ = userInfo
 //
-//	// 小程序身份能力也在小程序门面下。
+// Mini Program facade:
+//
 //	miniProgram := client.MiniProgram()
 //	loginResp, err := miniProgram.Login(ctx, openservice.MiniAppLoginRequest{
 //	    Code: "0811A11xxxxx",
@@ -95,7 +177,7 @@
 //	if err != nil {
 //	    return err
 //	}
-//	// loginResp.OpenID, loginResp.UnionID 可用于业务登录。
+//	// loginResp.OpenID and loginResp.UnionID can be used by business login.
 //
 //	decryptedData, err := miniProgram.DecryptData(ctx, openservice.DecryptRequest{
 //	    AppID:  loginResp.AppID,
@@ -106,7 +188,17 @@
 //	if err != nil {
 //	    return err
 //	}
-//	// decryptedData 为解密后的 map，可根据需要断言获取具体字段
-//
 //	_ = decryptedData
+//
+// Signature helpers:
+//
+// The gateway signs protected OpenService requests automatically. Signer helpers
+// are exposed for local signature debugging and callback-like integrations.
+//
+//	signer := openservice.NewSigner("merchant-secret")
+//	params := map[string]any{"mid": "1900001", "outTradeNo": "T202604100001"}
+//	signString := signer.BuildSignString(params)
+//	params["sign"] = signer.Sign(params)
+//	_ = signString
+//	_ = openservice.VerifySign(params, "merchant-secret")
 package openservice

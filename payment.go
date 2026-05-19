@@ -96,3 +96,16 @@ func (p *Payment) GetPaidUnionID(ctx context.Context, req GetPaidUnionIDRequest)
 	}
 	return &data, nil
 }
+
+// VerifyNotification 验签 OpenService 支付或退款回调通知参数。
+func (p *Payment) VerifyNotification(input any) error {
+	if p == nil || p.client == nil {
+		return ErrInvalidConfig
+	}
+	return VerifyPaymentNotification(input, p.client.config.Secret)
+}
+
+// ParseNotification 解析 OpenService 支付或退款回调通知参数，不执行验签。
+func (p *Payment) ParseNotification(input any) (*NotificationParseResult, error) {
+	return ParsePaymentNotification(input)
+}

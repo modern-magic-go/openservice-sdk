@@ -1,4 +1,5 @@
-// Package openservice provides a reusable client for the OpenService payment channel.
+// Package openservice provides the OpenService SDK client for payment, login,
+// JSSDK, and signature integration.
 //
 // The package only depends on the standard library and is intended to be wired by
 // the host application. The host is responsible for loading Config, providing any

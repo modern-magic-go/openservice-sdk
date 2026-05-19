@@ -73,7 +73,7 @@ func (g *HTTPGateway) PostJSON(ctx context.Context, path string, payload map[str
 
 	fullURL := g.baseURL + path
 	if g.logger != nil {
-		g.logger.Infow("openservice request", "channel", "openservice", "method", "POST", "url", fullURL, "payload", string(body))
+		g.logger.Infow("openservice-sdk request", "channel", "openservice-sdk", "method", "POST", "url", fullURL, "payload", string(body))
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(body))
@@ -86,7 +86,7 @@ func (g *HTTPGateway) PostJSON(ctx context.Context, path string, payload map[str
 	resp, err := g.httpClient.Do(req)
 	if err != nil {
 		if g.logger != nil {
-			g.logger.Errorw("openservice request failed", "channel", "openservice", "url", fullURL, "error", err)
+			g.logger.Errorw("openservice-sdk request failed", "channel", "openservice-sdk", "url", fullURL, "error", err)
 		}
 		return fmt.Errorf("%w: %v", g.errs.HTTPTransport, err)
 	}
@@ -102,7 +102,7 @@ func (g *HTTPGateway) PostJSON(ctx context.Context, path string, payload map[str
 	}
 
 	if g.logger != nil {
-		g.logger.Infow("openservice response", "channel", "openservice", "url", fullURL, "status", resp.StatusCode, "body", string(bodyBytes))
+		g.logger.Infow("openservice-sdk response", "channel", "openservice-sdk", "url", fullURL, "status", resp.StatusCode, "body", string(bodyBytes))
 	}
 
 	return g.decodeResult(bodyBytes, out)
@@ -127,7 +127,7 @@ func (g *HTTPGateway) GetJSON(ctx context.Context, path string, queryParams map[
 
 	fullURL := g.baseURL + path + "?" + params.Encode()
 	if g.logger != nil {
-		g.logger.Infow("openservice request", "channel", "openservice", "method", "GET", "url", fullURL, "params", queryParams)
+		g.logger.Infow("openservice-sdk request", "channel", "openservice-sdk", "method", "GET", "url", fullURL, "params", queryParams)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)

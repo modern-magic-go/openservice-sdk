@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modern-magic-go/openservice/enums"
+	"github.com/modern-magic-go/openservice-sdk/enums"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

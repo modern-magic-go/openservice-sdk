@@ -1,4 +1,4 @@
-module github.com/modern-magic-go/openservice
+module github.com/modern-magic-go/openservice-sdk
 
 go 1.22
 

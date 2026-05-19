@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/modern-magic-go/openservice/internal/gateway"
+	"github.com/modern-magic-go/openservice-sdk/internal/gateway"
 )
 
 const (

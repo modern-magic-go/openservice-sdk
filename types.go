@@ -3,7 +3,7 @@ package openservice
 import (
 	"strings"
 
-	"github.com/modern-magic-go/openservice/enums"
+	"github.com/modern-magic-go/openservice-sdk/enums"
 )
 
 // Result 定义 OpenService 统一响应包装。

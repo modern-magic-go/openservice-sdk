@@ -11,14 +11,15 @@ import (
 )
 
 const (
-	prepayPath         = "/api/payment/prepay"
-	scanPayPath        = "/api/payment/scanPay"
-	queryOrderPath     = "/api/payment/queryOrder"
-	queryRefundPath    = "/api/payment/queryRefund"
-	refundPath         = "/api/payment/refund"
-	getPaidUnionIDPath = "/api/payment/getPaidUnionid"
-	miniAppLoginPath   = "/api/login/miniapp"
-	miniAppDecryptPath = "/api/decrypted/miniapp"
+	prepayPath            = "/api/payment/prepay"
+	scanPayPath           = "/api/payment/scanPay"
+	queryOrderPath        = "/api/payment/queryOrder"
+	queryRefundPath       = "/api/payment/queryRefund"
+	refundPath            = "/api/payment/refund"
+	getPaidUnionIDPath    = "/api/payment/getPaidUnionid"
+	wechatAccessTokenPath = "/api/wechat/getAccessToken"
+	miniAppLoginPath      = "/api/login/miniapp"
+	miniAppDecryptPath    = "/api/decrypted/miniapp"
 )
 
 // Client 是 OpenService 模块主入口。

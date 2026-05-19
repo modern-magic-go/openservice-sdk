@@ -138,6 +138,12 @@
 //	}
 //	_ = oauthURL
 //
+//	accessToken, err := officialAccount.AccessToken(ctx)
+//	if err != nil {
+//	    return err
+//	}
+//	_ = accessToken.AccessToken
+//
 //	jssdkSignature, err := officialAccount.JSSDKSignature(ctx, openservice.JSSDKSignatureRequest{
 //	    URL: "https://example.com/page",
 //	})
@@ -155,6 +161,12 @@
 // Mini Program facade:
 //
 //	miniProgram := client.MiniProgram()
+//	miniAccessToken, err := miniProgram.AccessToken(ctx)
+//	if err != nil {
+//	    return err
+//	}
+//	_ = miniAccessToken.AccessToken
+//
 //	loginResp, err := miniProgram.Login(ctx, openservice.MiniAppLoginRequest{
 //	    Code: "0811A11xxxxx",
 //	})

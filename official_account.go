@@ -41,6 +41,33 @@ func (o *OfficialAccount) OAuthURL(ctx context.Context, req OAuthRequest) (strin
 	return o.client.config.BaseURL + oauthPath + "?" + params.Encode(), nil
 }
 
+// AccessToken 获取 OpenService 缓存的微信公众号 access token。
+func (o *OfficialAccount) AccessToken(ctx context.Context) (*AccessTokenData, error) {
+	if err := ensureContext(ctx); err != nil {
+		return nil, err
+	}
+	if o == nil || o.client == nil {
+		return nil, ErrInvalidConfig
+	}
+	return getWechatAccessToken(ctx, o.client)
+}
+
+func getWechatAccessToken(ctx context.Context, client *Client) (*AccessTokenData, error) {
+	if client == nil {
+		return nil, ErrInvalidConfig
+	}
+	mid := resolveString("", client.config.MID)
+	if mid == "" {
+		return nil, ErrMissingMID
+	}
+	var data AccessTokenData
+	queryParams := map[string]any{"mid": mid}
+	if err := client.getJSON(ctx, wechatAccessTokenPath, queryParams, &data); err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
 // JSSDKSignature 获取微信公众号 JSSDK 签名参数。
 func (o *OfficialAccount) JSSDKSignature(ctx context.Context, req JSSDKSignatureRequest) (*JSSDKSignatureData, error) {
 	if err := ensureContext(ctx); err != nil {

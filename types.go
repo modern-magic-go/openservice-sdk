@@ -337,6 +337,10 @@ type OAuthUserInfo struct {
 	City     string `json:"city,omitempty"`
 }
 
+type AccessTokenData struct {
+	AccessToken string `json:"access_token"`
+}
+
 type JSSDKSignatureRequest struct {
 	URL       string `json:"url"`
 	MID       string `json:"mid,omitempty"`

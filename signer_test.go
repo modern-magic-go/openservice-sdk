@@ -1,13 +1,16 @@
 package openservice
 
 import (
+	"crypto/hmac"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/modern-magic-go/openservice-sdk/internal/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -92,4 +95,102 @@ func TestQueryOrderData_UnmarshalFlatResponse(t *testing.T) {
 	assert.Equal(t, "Success", string(data.Order.TransStatus))
 	assert.Equal(t, "10008", data.Order.OutTradeNo)
 	assert.Equal(t, "400260411083900003", data.Order.TradeNo)
+}
+
+// ==================== v2 HMAC-SHA256 ====================
+
+func TestSHA256Hex(t *testing.T) {
+	got := signing.SHA256Hex([]byte("hello"))
+	manual := sha256.Sum256([]byte("hello"))
+	require.Equal(t, hex.EncodeToString(manual[:]), got)
+}
+
+func TestHMACSHA256(t *testing.T) {
+	got := signing.HMACSHA256("secret", "message")
+	mac := hmac.New(sha256.New, []byte("secret"))
+	mac.Write([]byte("message"))
+	expected := strings.ToUpper(hex.EncodeToString(mac.Sum(nil)))
+	require.Equal(t, expected, got)
+}
+
+func TestSignHeader_GeneratesHeaders(t *testing.T) {
+	signer := NewSigner("test-secret")
+	body := []byte(`{"outTradeNo":"ORDER001","amount":100}`)
+
+	headers := signer.SignHeader("POST", "/api/v2/payment/create", body, "M001")
+
+	assert.NotEmpty(t, headers["X-Auth-Mid"])
+	assert.NotEmpty(t, headers["X-Auth-Timestamp"])
+	assert.NotEmpty(t, headers["X-Auth-Nonce"])
+	assert.NotEmpty(t, headers["X-Auth-Signature"])
+	assert.Equal(t, "M001", headers["X-Auth-Mid"])
+	assert.Len(t, headers["X-Auth-Nonce"], 32) // 16 bytes → 32 hex chars
+}
+
+func TestVerifyHeader_CorrectSignature(t *testing.T) {
+	signer := NewSigner("test-secret")
+	method := "POST"
+	path := "/api/v2/payment/create"
+	body := []byte(`{"outTradeNo":"ORDER001","amount":100}`)
+	mid := "M001"
+
+	headers := signer.SignHeader(method, path, body, mid)
+	ts := headers["X-Auth-Timestamp"]
+	nonce := headers["X-Auth-Nonce"]
+	signature := headers["X-Auth-Signature"]
+
+	ok := signer.VerifyHeader(method, path, body, ts, nonce, signature, "test-secret")
+	assert.True(t, ok, "signature should verify with correct secret")
+}
+
+func TestVerifyHeader_WrongSecret(t *testing.T) {
+	signer := NewSigner("test-secret")
+	method := "POST"
+	path := "/api/v2/payment/create"
+	body := []byte(`{"outTradeNo":"ORDER001","amount":100}`)
+	mid := "M001"
+
+	headers := signer.SignHeader(method, path, body, mid)
+	ts := headers["X-Auth-Timestamp"]
+	nonce := headers["X-Auth-Nonce"]
+	signature := headers["X-Auth-Signature"]
+
+	ok := signer.VerifyHeader(method, path, body, ts, nonce, signature, "wrong-secret")
+	assert.False(t, ok, "signature should fail with wrong secret")
+}
+
+func TestVerifyHeader_TamperedBody(t *testing.T) {
+	signer := NewSigner("test-secret")
+	method := "POST"
+	path := "/api/v2/payment/create"
+	body := []byte(`{"outTradeNo":"ORDER001","amount":100}`)
+	mid := "M001"
+
+	headers := signer.SignHeader(method, path, body, mid)
+	ts := headers["X-Auth-Timestamp"]
+	nonce := headers["X-Auth-Nonce"]
+	signature := headers["X-Auth-Signature"]
+
+	// 篡改 body
+	tamperedBody := []byte(`{"outTradeNo":"ORDER001","amount":999}`)
+
+	ok := signer.VerifyHeader(method, path, tamperedBody, ts, nonce, signature, "test-secret")
+	assert.False(t, ok, "signature should fail when body is tampered")
+}
+
+func TestVerifyHeader_DifferentPath(t *testing.T) {
+	signer := NewSigner("test-secret")
+	method := "POST"
+	path := "/api/v2/payment/create"
+	body := []byte(`{"outTradeNo":"ORDER001","amount":100}`)
+	mid := "M001"
+
+	headers := signer.SignHeader(method, path, body, mid)
+	ts := headers["X-Auth-Timestamp"]
+	nonce := headers["X-Auth-Nonce"]
+	signature := headers["X-Auth-Signature"]
+
+	// 用不同 path 验证
+	ok := signer.VerifyHeader(method, "/api/v2/payment/query", body, ts, nonce, signature, "test-secret")
+	assert.False(t, ok, "signature should fail with different path")
 }

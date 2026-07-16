@@ -1,10 +1,7 @@
 package openservice
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/modern-magic-go/openservice-sdk/internal/gateway"
@@ -129,9 +126,14 @@ func (c *Client) Signer() *Signer {
 	return c.signer
 }
 
-// Payment 返回支付产品门面。
+// Payment 返回 v1 支付产品门面。
 func (c *Client) Payment() *Payment {
 	return &Payment{client: c}
+}
+
+// PaymentV2 返回 v2 支付产品门面（Header HMAC-SHA256 签名）。
+func (c *Client) PaymentV2() *PaymentV2 {
+	return &PaymentV2{client: c}
 }
 
 // MiniProgram 返回微信小程序产品门面。
@@ -151,38 +153,18 @@ func (c *Client) postJSON(ctx context.Context, path string, payload map[string]a
 	return c.gateway.PostJSON(ctx, path, payload, out)
 }
 
+func (c *Client) postJSONWithHeaderAuth(ctx context.Context, path string, payload map[string]any, out any) error {
+	if c == nil || c.gateway == nil {
+		return ErrInvalidConfig
+	}
+	return c.gateway.PostJSONWithHeaderAuth(ctx, path, payload, c.config.MID, out)
+}
+
 func (c *Client) getJSON(ctx context.Context, path string, queryParams map[string]any, out any) error {
 	if c == nil || c.gateway == nil {
 		return ErrInvalidConfig
 	}
 	return c.gateway.GetJSON(ctx, path, queryParams, out)
-}
-
-func decodeResult(body []byte, out any) error {
-	if len(bytes.TrimSpace(body)) == 0 {
-		return ErrInvalidResponse
-	}
-
-	var envelope Result[json.RawMessage]
-	if err := json.Unmarshal(body, &envelope); err != nil {
-		return fmt.Errorf("%w: %v", ErrInvalidResponse, err)
-	}
-	if envelope.Code != 0 {
-		if envelope.Message == "" {
-			return fmt.Errorf("%w: code=%d", ErrResponseCodeNonZero, envelope.Code)
-		}
-		return fmt.Errorf("%w: code=%d message=%s", ErrResponseCodeNonZero, envelope.Code, envelope.Message)
-	}
-	if len(bytes.TrimSpace(envelope.Data)) == 0 || bytes.Equal(bytes.TrimSpace(envelope.Data), []byte("null")) {
-		return ErrMissingData
-	}
-	if out == nil {
-		return ErrInvalidResponse
-	}
-	if err := json.Unmarshal(envelope.Data, out); err != nil {
-		return fmt.Errorf("%w: %v", ErrInvalidResponse, err)
-	}
-	return nil
 }
 
 func ensureContext(ctx context.Context) error {

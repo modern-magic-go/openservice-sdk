@@ -15,6 +15,7 @@ import (
 
 type Signer interface {
 	Sign(params map[string]any) string
+	SignHeader(method, path string, body []byte, mid string) map[string]string
 }
 
 type Logger interface {
@@ -82,6 +83,63 @@ func (g *HTTPGateway) PostJSON(ctx context.Context, path string, payload map[str
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+
+	resp, err := g.httpClient.Do(req)
+	if err != nil {
+		if g.logger != nil {
+			g.logger.Errorw("openservice-sdk request failed", "channel", "openservice-sdk", "url", fullURL, "error", err)
+		}
+		return fmt.Errorf("%w: %v", g.errs.HTTPTransport, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("%w: status=%d", g.errs.UnexpectedStatus, resp.StatusCode)
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("%w: read response body: %v", g.errs.InvalidResponse, err)
+	}
+
+	if g.logger != nil {
+		g.logger.Infow("openservice-sdk response", "channel", "openservice-sdk", "url", fullURL, "status", resp.StatusCode, "body", string(bodyBytes))
+	}
+
+	return g.decodeResult(bodyBytes, out)
+}
+
+// PostJSONWithHeaderAuth 发送 JSON POST 请求，使用 Header HMAC-SHA256 签名（v2 方案）。
+// body 不包含签名参数，签名通过 X-Auth-* Header 传递。
+func (g *HTTPGateway) PostJSONWithHeaderAuth(ctx context.Context, path string, payload map[string]any, mid string, out any) error {
+	if g == nil {
+		return g.errs.InvalidConfig
+	}
+	if path == "" {
+		return g.errs.InvalidRequest
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("%w: marshal request body: %v", g.errs.InvalidRequest, err)
+	}
+
+	authHeaders := g.signer.SignHeader("POST", path, body, mid)
+
+	fullURL := g.baseURL + path
+	if g.logger != nil {
+		g.logger.Infow("openservice-sdk request", "channel", "openservice-sdk", "method", "POST", "url", fullURL, "payload", string(body))
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("%w: create request: %v", g.errs.InvalidRequest, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	for k, v := range authHeaders {
+		req.Header.Set(k, v)
+	}
 
 	resp, err := g.httpClient.Do(req)
 	if err != nil {

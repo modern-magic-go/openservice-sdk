@@ -1,7 +1,9 @@
 package signing
 
 import (
+	"crypto/hmac"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"sort"
@@ -95,4 +97,17 @@ func NormalizeValue(value any) string {
 func UpperMD5(input string) string {
 	hash := md5.Sum([]byte(input))
 	return strings.ToUpper(hex.EncodeToString(hash[:]))
+}
+
+// HMACSHA256 对 message 做 HMAC-SHA256，返回大写 hex 字符串。
+func HMACSHA256(secret, message string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(message))
+	return strings.ToUpper(hex.EncodeToString(mac.Sum(nil)))
+}
+
+// SHA256Hex 对 data 做 SHA256，返回小写 hex 字符串。
+func SHA256Hex(data []byte) string {
+	hash := sha256.Sum256(data)
+	return hex.EncodeToString(hash[:])
 }

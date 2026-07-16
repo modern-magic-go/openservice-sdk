@@ -81,26 +81,79 @@ func TestRefundPayloadSigning_IgnoresEmptyOptionalFields(t *testing.T) {
 	assert.NotContains(t, got, "subOpenid=")
 }
 
-func TestDecodeResult_RefundEnvelopeUsesEnumStatus(t *testing.T) {
-	var data RefundData
-	body := []byte(`{"code":0,"message":"success","data":{"refund":{"mid":"1900001","appid":"wx1234567890","openid":"oUpF8uMuAJO_M2pxb1Q9zNjWeS6o","outTradeNo":"T202604100001","refundNo":"RF202604100001","outRefundNo":"R202604100001","channelRefundNo":"5000001234202404100000000000","currency":"CNY","totalAmount":100,"refundAmount":20,"transTime":"2026-04-10 10:05:00","transStatus":"Pending","transMessage":"退款处理中"}}}`)
+func TestRefundEnvelopeUsesEnumStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":0,"message":"success","data":{"refund":{"mid":"1900001","appid":"wx1234567890","openid":"oUpF8uMuAJO_M2pxb1Q9zNjWeS6o","outTradeNo":"T202604100001","refundNo":"RF202604100001","outRefundNo":"R202604100001","channelRefundNo":"5000001234202404100000000000","currency":"CNY","totalAmount":100,"refundAmount":20,"transTime":"2026-04-10 10:05:00","transStatus":"Pending","transMessage":"退款处理中"}}}`))
+	}))
+	defer server.Close()
 
-	require.NoError(t, decodeResult(body, &data))
-	assert.Equal(t, "1900001", data.Refund.MID)
-	assert.Equal(t, "RF202604100001", data.Refund.RefundNo)
-	assert.Equal(t, enums.TransStatusPending, data.Refund.TransStatus)
-	assert.True(t, data.Refund.TransStatus.IsValid())
+	client, err := NewClient(Config{
+		BaseURL: server.URL,
+		MID:     "1900001",
+		Secret:  "test-secret",
+		Timeout: time.Second,
+	})
+	require.NoError(t, err)
+
+	resp, err := client.Payment().Refund(context.Background(), RefundRequest{
+		OutTradeNo:   "T202604100001",
+		OutRefundNo:  "R202604100001",
+		TotalAmount:  100,
+		RefundAmount: 20,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "1900001", resp.Refund.MID)
+	assert.Equal(t, "RF202604100001", resp.Refund.RefundNo)
+	assert.Equal(t, enums.TransStatusPending, resp.Refund.TransStatus)
+	assert.True(t, resp.Refund.TransStatus.IsValid())
 }
 
-func TestDecodeResult_RefundReturnsMissingDataWhenEnvelopeDataIsNull(t *testing.T) {
-	var data RefundData
-	err := decodeResult([]byte(`{"code":0,"message":"success","data":null}`), &data)
+func TestRefundReturnsMissingDataWhenEnvelopeDataIsNull(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":0,"message":"success","data":null}`))
+	}))
+	defer server.Close()
+
+	client, err := NewClient(Config{
+		BaseURL: server.URL,
+		MID:     "1900001",
+		Secret:  "test-secret",
+		Timeout: time.Second,
+	})
+	require.NoError(t, err)
+
+	_, err = client.Payment().Refund(context.Background(), RefundRequest{
+		OutTradeNo:   "T202604100001",
+		OutRefundNo:  "R202604100001",
+		TotalAmount:  100,
+		RefundAmount: 20,
+	})
 	require.ErrorIs(t, err, ErrMissingData)
 }
 
-func TestDecodeResult_RefundReturnsResponseCodeError(t *testing.T) {
-	var data RefundData
-	err := decodeResult([]byte(`{"code":1,"message":"signature verify failed","data":null}`), &data)
+func TestRefundReturnsResponseCodeError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":1,"message":"signature verify failed","data":null}`))
+	}))
+	defer server.Close()
+
+	client, err := NewClient(Config{
+		BaseURL: server.URL,
+		MID:     "1900001",
+		Secret:  "test-secret",
+		Timeout: time.Second,
+	})
+	require.NoError(t, err)
+
+	_, err = client.Payment().Refund(context.Background(), RefundRequest{
+		OutTradeNo:   "T202604100001",
+		OutRefundNo:  "R202604100001",
+		TotalAmount:  100,
+		RefundAmount: 20,
+	})
 	require.ErrorIs(t, err, ErrResponseCodeNonZero)
 	require.Contains(t, err.Error(), "signature verify failed")
 }

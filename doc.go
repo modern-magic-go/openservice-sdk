@@ -103,7 +103,58 @@
 //	}
 //	_ = unionResp.UnionID
 //
-// Payment notifications:
+// V2 Payment facade (Alipay APP pay):
+//
+// The v2 payment API uses Header-based HMAC-SHA256 signature (X-Auth-* headers)
+// instead of body-embedded MD5. Use PaymentV2() for v2 APIs.
+//
+//	paymentV2 := client.PaymentV2()
+//
+//	// Create an Alipay APP payment order.
+//	createResp, err := paymentV2.CreateOrder(ctx, openservice.CreateOrderRequest{
+//	    Provider:   "alipay",
+//	    Method:     "app",
+//	    OutTradeNo: "ORDER20260716001",
+//	    Amount:     100, // 1.00 CNY
+//	    Subject:    "测试商品",
+//	    NotifyUrl:  "https://api.example.com/notify",
+//	})
+//	if err != nil {
+//	    return err
+//	}
+//	// createResp.PayParams.OrderString is the signed query string for Alipay SDK.
+//	_ = createResp.PayParams.OrderString
+//
+//	// Query an order by outTradeNo.
+//	order, err := paymentV2.QueryOrder(ctx, openservice.QueryOrderV2Request{
+//	    OutTradeNo: "ORDER20260716001",
+//	})
+//	if err != nil {
+//	    return err
+//	}
+//	_ = order.TransStatus
+//	_ = order.Amount
+//
+// V2 Payment notifications:
+//
+// PaymentV2 notification methods verify and parse callbacks using
+// Header HMAC-SHA256 only (no form/MD5 fallback).
+//
+//	http.HandleFunc("/notify", func(w http.ResponseWriter, r *http.Request) {
+//	    if err := paymentV2.VerifyNotification(r); err != nil {
+//	        w.WriteHeader(403)
+//	        return
+//	    }
+//	    parsed, err := paymentV2.ParseNotification(r)
+//	    if err != nil {
+//	        w.WriteHeader(400)
+//	        return
+//	    }
+//	    // parsed.Payment.OutTradeNo / TradeNo / TransStatus / Amount ...
+//	    w.Write([]byte("SUCCESS"))
+//	})
+//
+// Payment notifications (v1, form-urlencoded):
 //
 // Payment and refund notifications are form-urlencoded callbacks sent by
 // OpenService. The SDK verifies and parses them, but the HTTP handler still owns

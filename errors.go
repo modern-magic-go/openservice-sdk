@@ -15,4 +15,5 @@ var (
 	ErrUnexpectedStatus    = errors.New("openservice: unexpected http status")
 	ErrResponseCodeNonZero = errors.New("openservice: response code is not zero")
 	ErrMissingData         = errors.New("openservice: response data is missing")
+	ErrInvalidSign         = errors.New("openservice: signature verification failed")
 )
